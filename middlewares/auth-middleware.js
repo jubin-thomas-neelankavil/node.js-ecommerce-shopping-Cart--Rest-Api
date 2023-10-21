@@ -1,29 +1,44 @@
-import jwt from 'jsonwebtoken'
-import UserModel from '../models/User.js'
 
-var checkUserAuth = async (req, res, next) => {
-    let token
-    const { authorization } = req.headers
-    if (authorization && authorization.startsWith('Bearer')) {
-      try {
-        // Get Token from header
-        token = authorization.split(' ')[1]
+
+
+import jwt from 'jsonwebtoken';
+import { config } from '../config/connect.js'
+// Middleware to authenticate the user
+// const authMiddleware =  async(req, res, next) => {
+//   const token =  req.header('Authorization'); // Assuming the token is passed in the 'Authorization' header
+//   if (!token) {
+//     return res.status(401).json({ msg: 'Authorization denied' });
+//   }
+//   console.log(token);
+
+//   try {
+//     const decoded =jwt.verify(token, config.app.jwtSecret);
+//     console.log(config.app.jwtSecret,"+++++");
+//     console.log(decoded,"------");
+//     req.user = decoded.user; // Set the user object on the request
+//     next();
+//   } catch (error) {
+//     res.status(401).json({ msg: 'Token is not valid' });
+//   }
+// };
+
+const  authMiddleware = async (req, res, next)  =>{
+    const header_auth = req.headers.authorization;
+    const token = header_auth ? header_auth.slice(7, header_auth.length) : null;
   
-        // Verify Token
-        const { userID } = jwt.verify(token, process.env.JWT_SECRET_KEY)
+    try {
+        req.errorStatus = 401;
+        const decoded = jwt.verify(token, config.app.jwtSecret);
+        console.log(decoded,"+++++");
+        // Assuming decoded contains user data with 'email' property.
+        req.user = decoded.user;
   
-        // Get User from Token
-        req.user = await UserModel.findById(userID).select('-password')
-  
-        next()
-      } catch (error) {
-        console.log(error)
-        res.status(401).send({ "status": "failed", "message": "Unauthorized User" })
-      }
-    }
-    if (!token) {
-      res.status(401).send({ "status": "failed", "message": "Unauthorized User, No Token" })
+        next();
+    } catch (e) {
+      next(e);
+      res.status(401).json({ msg: 'Token is not valid' });
+
     }
   }
 
-export default checkUserAuth
+export default authMiddleware
